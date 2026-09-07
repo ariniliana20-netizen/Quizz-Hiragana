@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Hiragana Master — Kuis Interaktif Hiragana</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1120;
+    --surface:#141B2E;
+    --surface-2:#1B2438;
+    --line:#28324A;
+    --indigo:#6366F1;
+    --indigo-soft:#4338CA;
+    --indigo-glow:rgba(99,102,241,.18);
+    --text:#E7EAF3;
+    --muted:#8B93AC;
+    --good:#34D399;
+    --good-bg:rgba(52,211,153,.12);
+    --bad:#F87171;
+    --bad-bg:rgba(248,113,113,.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{background:var(--bg); color:var(--text); font-family:'Plus Jakarta Sans',sans-serif; -webkit-tap-highlight-color:transparent;}
+  .jp{font-family:'Noto Sans JP',sans-serif;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+  .bg-grid{
+    background-image:
+      radial-gradient(circle at 15% 10%, var(--indigo-glow), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(99,102,241,.10), transparent 40%);
+  }
+  .card{background:var(--surface); border:1px solid var(--line);}
+  .choice-btn{
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    transition: transform .12s ease, border-color .12s ease, background-color .12s ease;
+  }
+  .choice-btn:active{transform:scale(.97);}
+  .choice-btn:hover:not(:disabled){border-color:#4C5A80; background:#212B45;}
+  .choice-btn.correct{background:var(--good-bg); border-color:var(--good); color:#A7F3D0;}
+  .choice-btn.incorrect{background:var(--bad-bg); border-color:var(--bad); color:#FECACA;}
+  .choice-btn.reveal{background:var(--good-bg); border-color:var(--good); color:#A7F3D0;}
+  .choice-btn:disabled{cursor:default;}
+  .cat-card{
+    background:var(--surface); border:1px solid var(--line);
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+  .cat-card.selected{border-color:var(--indigo); background:linear-gradient(180deg, rgba(99,102,241,.14), rgba(99,102,241,.04));}
+  .count-btn{background:var(--surface-2); border:1px solid var(--line); transition:.15s ease;}
+  .count-btn.selected{border-color:var(--indigo); background:var(--indigo-soft); color:#fff;}
+  .progress-track{background:var(--surface-2);}
+  .progress-fill{background:linear-gradient(90deg,#6366F1,#818CF8);}
+  .fade-in{animation:fadeIn .35s ease both;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .pop{animation:pop .3s cubic-bezier(.34,1.56,.64,1) both;}
+  @keyframes pop{from{opacity:0; transform:scale(.9);} to{opacity:1; transform:scale(1);}}
+  .hint-box{background:var(--surface-2); border:1px dashed #3A4568;}
+  ::selection{background:var(--indigo); color:#fff;}
+  input[type="range"]{accent-color:var(--indigo);}
+  @media (prefers-reduced-motion: reduce){
+    .fade-in,.pop{animation:none;}
+  }
+</style>
+</head>
+<body class="min-h-screen bg-grid">
+
+<div class="max-w-md mx-auto min-h-screen flex flex-col px-5 pb-10">
+
+  <!-- ============ HEADER ============ -->
+  <header class="pt-7 pb-4 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center jp text-indigo-300 font-bold text-lg">あ</div>
+      <div>
+        <p class="font-bold leading-tight text-[15px]">Hiragana Master</p>
+        <p class="text-[11px] text-slate-500 leading-tight">latihan baca tanpa batas</p>
+      </div>
+    </div>
+    <div id="header-score" class="hidden text-right">
+      <p class="text-[11px] text-slate-500 leading-tight">Skor</p>
+      <p id="header-score-val" class="font-bold text-indigo-300 leading-tight">0</p>
+    </div>
+  </header>
+
+  <!-- ============ START SCREEN ============ -->
+  <section id="screen-start" class="screen active flex-1 fade-in">
+    <h1 class="text-2xl font-extrabold leading-snug mb-1.5">Pilih kategori latihanmu</h1>
+    <p class="text-slate-500 text-sm mb-6">Setiap sesi diacak otomatis. Ulangi sepuasnya sampai lancar.</p>
+
+    <div id="category-list" class="grid grid-cols-1 gap-3 mb-7"></div>
+
+    <h2 class="text-sm font-semibold text-slate-300 mb-3">Jumlah soal</h2>
+    <div id="count-list" class="grid grid-cols-4 gap-2.5 mb-8"></div>
+
+    <button id="btn-start" class="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-400 active:scale-[.98] transition font-bold text-white shadow-lg shadow-indigo-500/20">
+      Mulai Kuis
+    </button>
+  </section>
+
+  <!-- ============ QUIZ SCREEN ============ -->
+  <section id="screen-quiz" class="screen flex-1 flex flex-col">
+    <div class="flex items-center justify-between mb-2 text-xs text-slate-400">
+      <span id="quiz-progress-label">Soal 1/10</span>
+      <span id="quiz-score-label" class="font-semibold text-indigo-300">Benar 0</span>
+    </div>
+    <div class="progress-track h-2 rounded-full overflow-hidden mb-7">
+      <div id="progress-fill" class="progress-fill h-full rounded-full" style="width:0%"></div>
+    </div>
+
+    <div class="card rounded-3xl py-10 px-6 flex flex-col items-center justify-center mb-5 min-h-[190px] relative overflow-hidden">
+      <p id="quiz-category-tag" class="absolute top-4 left-5 text-[11px] uppercase tracking-wide text-indigo-300/70 font-semibold"></p>
+      <p id="quiz-char" class="jp text-7xl font-bold pop">あ</p>
+      <p id="quiz-vocab-meaning-hidden" class="mt-3 text-slate-500 text-sm hidden">baca huruf di atas</p>
+    </div>
+
+    <button id="btn-hint" class="mb-3 self-start text-xs font-semibold text-indigo-300 border border-indigo-500/30 bg-indigo-500/10 rounded-full px-3.5 py-1.5 flex items-center gap-1.5">
+      <span>💡</span> Petunjuk
+    </button>
+    <div id="hint-box" class="hint-box rounded-xl px-4 py-3 mb-4 text-sm text-slate-300 hidden fade-in"></div>
+
+    <div id="choice-grid" class="grid grid-cols-2 gap-3 mt-1"></div>
+
+    <div id="feedback-box" class="mt-4 rounded-2xl px-4 py-3.5 hidden fade-in">
+      <p id="feedback-title" class="font-bold text-sm mb-0.5"></p>
+      <p id="feedback-detail" class="text-sm text-slate-300"></p>
+    </div>
+
+    <button id="btn-next" class="mt-auto pt-6 w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-400 active:scale-[.98] transition font-bold text-white hidden">
+      Lanjut
+    </button>
+  </section>
+
+  <!-- ============ RESULT SCREEN ============ -->
+  <section id="screen-result" class="screen flex-1 flex flex-col fade-in">
+    <div class="flex-1 flex flex-col items-center justify-center text-center py-6">
+      <p id="result-emoji" class="text-5xl mb-4">🎉</p>
+      <p class="text-slate-500 text-sm mb-1">Skor akhir kamu</p>
+      <p id="result-percent" class="text-6xl font-extrabold text-indigo-300 mb-6">0%</p>
+
+      <div class="flex gap-3 w-full mb-2">
+        <div class="card flex-1 rounded-2xl py-4">
+          <p class="text-2xl font-bold text-emerald-400" id="result-correct">0</p>
+          <p class="text-xs text-slate-500 mt-0.5">Benar</p>
+        </div>
+        <div class="card flex-1 rounded-2xl py-4">
+          <p class="text-2xl font-bold text-red-400" id="result-wrong">0</p>
+          <p class="text-xs text-slate-500 mt-0.5">Salah</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3 pb-2">
+      <button id="btn-retry-wrong" class="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-400 active:scale-[.98] transition font-bold text-white hidden">
+        Ulangi Soal yang Salah
+      </button>
+      <button id="btn-retry-same" class="w-full py-3.5 rounded-2xl card font-semibold text-slate-200 active:scale-[.98] transition">
+        Ulangi Kategori Ini
+      </button>
+      <button id="btn-back-home" class="w-full py-3.5 rounded-2xl font-semibold text-slate-400 active:scale-[.98] transition">
+        Kembali ke Awal
+      </button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const BASIC = [
+  ["あ","a","Menyerupai huruf latin 'a' dengan ekor melengkung ke kiri bawah"],
+  ["い","i","Dua garis vertikal pendek berdiri sejajar"],
+  ["う","u","Seperti mata kail memancing menghadap ke bawah"],
+  ["え","e","Bentuk seperti anak panah kecil yang melengkung"],
+  ["お","o","Mirip huruf hiragana panjang dengan coretan kecil di kanan atas"],
+  ["か","ka","Ada coretan kecil terpisah di kanan atas, seperti tanduk"],
+  ["き","ki","Dua garis melintang di tengah dengan kait di bagian bawah"],
+  ["く","ku","Seperti sudut siku yang terbuka ke kanan"],
+  ["け","ke","Mirip 'き' tapi kaki kanannya memanjang lurus ke bawah"],
+  ["こ","ko","Dua garis horizontal pendek yang sejajar"],
+  ["さ","sa","Ada kait kecil di kiri bawah, seperti huruf 's' bersudut"],
+  ["し","shi","Satu garis melengkung tunggal seperti kail vertikal"],
+  ["す","su","Garis melengkung dengan lingkaran kecil menggantung di bawah"],
+  ["せ","se","Garis silang dengan kait tajam di sisi kanan"],
+  ["そ","so","Garis zig-zag yang menurun dari kiri ke kanan"],
+  ["た","ta","Mirip huruf 'k' latin dengan tambahan coretan kecil"],
+  ["ち","chi","Garis melengkung yang mirip angka 5"],
+  ["つ","tsu","Bentuknya seperti gelombang atau ombak kecil"],
+  ["て","te","Satu garis melengkung panjang, seperti tangan terentang"],
+  ["と","to","Garis tegak lurus dengan kait pendek di bagian bawah"],
+  ["な","na","Ada dua coretan kecil menyilang di sisi kanan"],
+  ["に","ni","Mirip angka '12' tanpa titik di tengahnya"],
+  ["ぬ","nu","Ada lingkaran kecil di ujung, seperti benang yang melingkar"],
+  ["ね","ne","Mirip 'ぬ' tapi ekornya melengkung panjang ke kanan"],
+  ["の","no","Satu garis tunggal yang melingkar seperti spiral"],
+  ["は","ha","Garis tegak dengan kait dan satu coretan kecil di kanan"],
+  ["ひ","hi","Melengkung lembut menyerupai bentuk senyuman"],
+  ["ふ","fu","Seperti gunung kecil dengan tiga coretan pendek"],
+  ["へ","he","Satu garis melengkung tunggal seperti gunung terbalik"],
+  ["ほ","ho","Mirip 'は' tapi dengan tambahan satu garis lagi"],
+  ["ま","ma","Ada lingkaran kecil menggantung di bagian bawah"],
+  ["み","mi","Garis melengkung ganda yang saling berkaitan seperti pita"],
+  ["む","mu","Garis berkelok dengan ekor kecil melengkung di akhir"],
+  ["め","me","Mirip 'ぬ' tapi lebih sederhana, mengingatkan pada angka 4"],
+  ["も","mo","Garis horizontal dengan satu kait tegak di tengah"],
+  ["や","ya","Garis melengkung dengan kait tajam di kanan atas"],
+  ["ゆ","yu","Bentuknya seperti pita yang melingkar lembut"],
+  ["よ","yo","Garis tegak dengan kait besar melengkung di kanan"],
+  ["ら","ra","Ada lingkaran kecil menggantung di bagian bawah kanan"],
+  ["り","ri","Dua garis vertikal, satu pendek dan satu memanjang"],
+  ["る","ru","Garis yang berakhir dengan lingkaran besar di bawah"],
+  ["れ","re","Garis tegak dengan kait melengkung ke kanan bawah"],
+  ["ろ","ro","Garis melengkung tunggal yang membentuk kurva terbuka"],
+  ["わ","wa","Garis melengkung yang terbuka lebar ke kanan"],
+  ["を","wo","Mirip 'お' tapi dengan tiga coretan yang lebih rumit"],
+  ["ん","n","Satu garis melengkung tunggal yang sederhana, tanpa vokal"],
+];
+
+const DAKUON = [
+  ["が","ga","か"],["ぎ","gi","き"],["ぐ","gu","く"],["げ","ge","け"],["ご","go","こ"],
+  ["ざ","za","さ"],["じ","ji","し"],["ず","zu","す"],["ぜ","ze","せ"],["ぞ","zo","そ"],
+  ["だ","da","た"],["ぢ","ji","ち"],["づ","zu","つ"],["で","de","て"],["ど","do","と"],
+  ["ば","ba","は"],["び","bi","ひ"],["ぶ","bu","ふ"],["べ","be","へ"],["ぼ","bo","ほ"],
+].map(([c,r,base])=>[c,r,`Huruf dasar '${base}' ditambah tanda dakuten (゛) di kanan atas`]);
+
+const HANDAKUON = [
+  ["ぱ","pa","は"],["ぴ","pi","ひ"],["ぷ","pu","ふ"],["ぺ","pe","へ"],["ぽ","po","ほ"],
+].map(([c,r,base])=>[c,r,`Huruf dasar '${base}' ditambah tanda handakuten (゜) bulat kecil`]);
+
+const YOON = [
+  ["きゃ","kya","き","や"],["きゅ","kyu","き","ゆ"],["きょ","kyo","き","よ"],
+  ["しゃ","sha","し","や"],["しゅ","shu","し","ゆ"],["しょ","sho","し","よ"],
+  ["ちゃ","cha","ち","や"],["ちゅ","chu","ち","ゆ"],["ちょ","cho","ち","よ"],
+  ["にゃ","nya","に","や"],["にゅ","nyu","に","ゆ"],["にょ","nyo","に","よ"],
+  ["ひゃ","hya","ひ","や"],["ひゅ","hyu","ひ","ゆ"],["ひょ","hyo","ひ","よ"],
+  ["みゃ","mya","み","や"],["みゅ","myu","み","ゆ"],["みょ","myo","み","よ"],
+  ["りゃ","rya","り","や"],["りゅ","ryu","り","ゆ"],["りょ","ryo","り","よ"],
+  ["ぎゃ","gya","ぎ","や"],["ぎゅ","gyu","ぎ","ゆ"],["ぎょ","gyo","ぎ","よ"],
+  ["じゃ","ja","じ","や"],["じゅ","ju","じ","ゆ"],["じょ","jo","じ","よ"],
+  ["びゃ","bya","び","や"],["びゅ","byu","び","ゆ"],["びょ","byo","び","よ"],
+  ["ぴゃ","pya","ぴ","や"],["ぴゅ","pyu","ぴ","ゆ"],["ぴょ","pyo","ぴ","よ"],
+].map(([c,r,b1,b2])=>[c,r,`Gabungan '${b1}' dengan '${b2}' kecil — dibaca sebagai satu suku kata`]);
+
+// Vocab: hiragana word -> [word, meaning(Indonesian), hint]
+const VOCAB = [
+  ["さくら","Bunga sakura","Bunga khas Jepang yang mekar di musim semi, warnanya merah muda"],
+  ["ねこ","Kucing","Hewan peliharaan populer yang suka mengeong"],
+  ["いぬ","Anjing","Hewan peliharaan setia yang suka menggonggong"],
+  ["くるま","Mobil","Kendaraan beroda empat untuk transportasi"],
+  ["ほん","Buku","Benda yang berisi halaman untuk dibaca"],
+  ["みず","Air","Cairan bening yang kita minum setiap hari"],
+  ["やま","Gunung","Dataran tinggi yang menjulang, sering didaki"],
+  ["かわ","Sungai","Aliran air yang mengalir dari pegunungan ke laut"],
+  ["そら","Langit","Terlihat biru di siang hari, gelap di malam hari"],
+  ["はな","Bunga","Tumbuhan cantik yang biasanya harum, mekar di taman"],
+  ["さかな","Ikan","Hewan yang hidup di air dan berenang dengan sirip"],
+  ["とり","Burung","Hewan bersayap yang bisa terbang dan berkicau"],
+  ["つき","Bulan","Muncul di langit malam, mengelilingi bumi"],
+  ["ひと","Orang","Manusia secara umum"],
+  ["がっこう","Sekolah","Tempat belajar bagi murid dan siswa"],
+  ["ともだち","Teman","Orang yang dekat denganmu, tempat berbagi cerita"],
+  ["たべもの","Makanan","Sesuatu yang kita makan agar kenyang"],
+  ["でんしゃ","Kereta listrik","Alat transportasi rel yang cepat, umum di Jepang"],
+  ["あめ","Hujan","Air yang jatuh dari langit saat mendung"],
+  ["ゆき","Salju","Butiran putih dingin yang turun di musim dingin"],
+].map(([c,meaning,hint])=>[c,meaning,hint]);
+
+const CATEGORIES = [
+  { id:"all",    label:"Semua Karakter (Campuran)",       desc:"Gabungan seluruh kategori di bawah", icon:"🔀" },
+  { id:"basic",  label:"Hiragana Dasar (あ - ん)",         desc:"46 huruf dasar untuk pemula",         icon:"あ" },
+  { id:"dakuon", label:"Dakuon & Handakuon",               desc:"が, ぱ, dan huruf bertanda lainnya",   icon:"が" },
+  { id:"yoon",   label:"Kombinasi Yoon",                   desc:"きゃ, しょ, dan gabungan suku kata",   icon:"きゃ" },
+  { id:"vocab",  label:"Kosakata",                         desc:"Kata sehari-hari dalam hiragana",     icon:"さくら" },
+];
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let state = {
+  categoryId: "all",
+  count: 10,
+  pool: [],        // full item pool for chosen category
+  questions: [],    // this session's questions (mode:'read' or 'meaning')
+  index: 0,
+  correct: 0,
+  wrongItems: [],   // items answered incorrectly, for retry mode
+  answered: false,
+  isRetryWrongFlow: false,
+};
+
+function poolForCategory(id){
+  if(id==="basic") return BASIC.map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"}));
+  if(id==="dakuon") return [...DAKUON, ...HANDAKUON].map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"}));
+  if(id==="yoon") return YOON.map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"}));
+  if(id==="vocab") return VOCAB.map(([c,m,h])=>({char:c, answer:m, hint:h, mode:"meaning"}));
+  // all
+  return [
+    ...BASIC.map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"})),
+    ...DAKUON.map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"})),
+    ...HANDAKUON.map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"})),
+    ...YOON.map(([c,r,h])=>({char:c, answer:r, hint:h, mode:"read"})),
+    ...VOCAB.map(([c,m,h])=>({char:c, answer:m, hint:h, mode:"meaning"})),
+  ];
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function buildChoices(item, sourcePool){
+  const sameMode = sourcePool.filter(p => p.mode===item.mode && p.answer!==item.answer);
+  const distractors = shuffle(sameMode).slice(0,3).map(p=>p.answer);
+  const choices = shuffle([item.answer, ...distractors]);
+  return choices;
+}
+
+/* ============================================================
+   RENDER: START SCREEN
+   ============================================================ */
+const categoryListEl = document.getElementById("category-list");
+const countListEl = document.getElementById("count-list");
+
+CATEGORIES.forEach(cat=>{
+  const btn = document.createElement("button");
+  btn.className = "cat-card rounded-2xl p-4 flex items-center gap-3.5 text-left" + (cat.id===state.categoryId ? " selected":"");
+  btn.dataset.id = cat.id;
+  btn.innerHTML = `
+    <div class="jp w-11 h-11 shrink-0 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-base">${cat.icon}</div>
+    <div class="min-w-0">
+      <p class="font-semibold text-[14.5px] leading-snug">${cat.label}</p>
+      <p class="text-[12px] text-slate-500 leading-snug mt-0.5">${cat.desc}</p>
+    </div>`;
+  btn.addEventListener("click", ()=>{
+    state.categoryId = cat.id;
+    document.querySelectorAll(".cat-card").forEach(el=>el.classList.remove("selected"));
+    btn.classList.add("selected");
+  });
+  categoryListEl.appendChild(btn);
+});
+
+[5,10,20,50].forEach(n=>{
+  const btn = document.createElement("button");
+  btn.className = "count-btn rounded-xl py-3 font-bold text-sm" + (n===state.count ? " selected":"");
+  btn.textContent = n;
+  btn.addEventListener("click", ()=>{
+    state.count = n;
+    document.querySelectorAll(".count-btn").forEach(el=>el.classList.remove("selected"));
+    btn.classList.add("selected");
+  });
+  countListEl.appendChild(btn);
+});
+
+document.getElementById("btn-start").addEventListener("click", ()=>{
+  state.isRetryWrongFlow = false;
+  startQuiz(state.categoryId, state.count);
+});
+
+/* ============================================================
+   QUIZ FLOW
+   ============================================================ */
+const screens = {
+  start: document.getElementById("screen-start"),
+  quiz: document.getElementById("screen-quiz"),
+  result: document.getElementById("screen-result"),
+};
+function showScreen(name){
+  Object.values(screens).forEach(s=>s.classList.remove("active"));
+  screens[name].classList.add("active");
+  document.getElementById("header-score").classList.toggle("hidden", name!=="quiz");
+}
+
+function startQuiz(categoryId, count, customPool){
+  const pool = customPool || poolForCategory(categoryId);
+  state.pool = poolForCategory("all"); // used as distractor source (widest variety), filtered by mode
+  const picked = shuffle(pool).slice(0, Math.min(count, pool.length));
+  state.questions = picked;
+  state.index = 0;
+  state.correct = 0;
+  state.wrongItems = [];
+  state.answered = false;
+  showScreen("quiz");
+  renderQuestion();
+}
+
+const catTagLabel = { all:"Campuran", basic:"Hiragana Dasar", dakuon:"Dakuon & Handakuon", yoon:"Yoon", vocab:"Kosakata" };
+
+function currentDistractorPool(item){
+  // prefer same category-ish pool for plausible distractors
+  const base = state.categoryId==="all" ? state.pool : poolForCategory(state.categoryId);
+  return base.length >= 4 ? base : state.pool;
+}
+
+function renderQuestion(){
+  const item = state.questions[state.index];
+  state.answered = false;
+
+  document.getElementById("quiz-progress-label").textContent = `Soal ${state.index+1}/${state.questions.length}`;
+  document.getElementById("quiz-score-label").textContent = `Benar ${state.correct}`;
+  document.getElementById("header-score-val").textContent = state.correct;
+  document.getElementById("progress-fill").style.width = `${(state.index/state.questions.length)*100}%`;
+  document.getElementById("quiz-category-tag").textContent = catTagLabel[state.categoryId] || "Campuran";
+
+  const charEl = document.getElementById("quiz-char");
+  charEl.textContent = item.char;
+  charEl.className = "jp font-bold pop " + (item.mode==="meaning" ? "text-5xl" : "text-7xl");
+  document.getElementById("quiz-vocab-meaning-hidden").classList.toggle("hidden", item.mode!=="meaning");
+  if(item.mode==="meaning") document.getElementById("quiz-vocab-meaning-hidden").textContent = "apa artinya?";
+
+  document.getElementById("hint-box").classList.add("hidden");
+  document.getElementById("hint-box").textContent = "";
+  document.getElementById("feedback-box").classList.add("hidden");
+  document.getElementById("btn-next").classList.add("hidden");
+
+  const choices = buildChoices(item, currentDistractorPool(item));
+  const grid = document.getElementById("choice-grid");
+  grid.innerHTML = "";
+  choices.forEach(choice=>{
+    const b = document.createElement("button");
+    b.className = "choice-btn rounded-xl py-4 px-2 font-semibold text-[15px]";
+    b.textContent = choice;
+    b.addEventListener("click", ()=>handleAnswer(b, choice, item));
+    grid.appendChild(b);
+  });
+}
+
+document.getElementById("btn-hint").addEventListener("click", ()=>{
+  const item = state.questions[state.index];
+  const box = document.getElementById("hint-box");
+  box.textContent = "💡 " + item.hint;
+  box.classList.remove("hidden");
+});
+
+function handleAnswer(btnEl, choice, item){
+  if(state.answered) return;
+  state.answered = true;
+
+  const isCorrect = choice === item.answer;
+  const allBtns = document.querySelectorAll("#choice-grid button");
+  allBtns.forEach(b=>{
+    b.disabled = true;
+    if(b.textContent === item.answer) b.classList.add("reveal");
+  });
+  if(!isCorrect) btnEl.classList.add("incorrect");
+
+  const fb = document.getElementById("feedback-box");
+  const title = document.getElementById("feedback-title");
+  const detail = document.getElementById("feedback-detail");
+  fb.classList.remove("hidden");
+
+  if(isCorrect){
+    state.correct++;
+    fb.style.background = "var(--good-bg)";
+    fb.style.border = "1px solid rgba(52,211,153,.35)";
+    title.textContent = "Benar!";
+    title.style.color = "#6EE7B7";
+  } else {
+    state.wrongItems.push(item);
+    fb.style.background = "var(--bad-bg)";
+    fb.style.border = "1px solid rgba(248,113,113,.35)";
+    title.textContent = "Kurang tepat";
+    title.style.color = "#FCA5A5";
+  }
+  detail.textContent = item.mode==="read"
+    ? `Bacaan yang benar: ${item.answer} (${item.char})`
+    : `Arti yang benar: ${item.answer}`;
+
+  document.getElementById("quiz-score-label").textContent = `Benar ${state.correct}`;
+  document.getElementById("header-score-val").textContent = state.correct;
+
+  const nextBtn = document.getElementById("btn-next");
+  nextBtn.classList.remove("hidden");
+  nextBtn.textContent = (state.index === state.questions.length-1) ? "Lihat Hasil" : "Lanjut";
+}
+
+document.getElementById("btn-next").addEventListener("click", ()=>{
+  if(state.index === state.questions.length-1){
+    finishQuiz();
+  } else {
+    state.index++;
+    renderQuestion();
+  }
+});
+
+function finishQuiz(){
+  document.getElementById("progress-fill").style.width = "100%";
+  const total = state.questions.length;
+  const pct = Math.round((state.correct/total)*100);
+  document.getElementById("result-percent").textContent = `${pct}%`;
+  document.getElementById("result-correct").textContent = state.correct;
+  document.getElementById("result-wrong").textContent = total - state.correct;
+  document.getElementById("result-emoji").textContent = pct===100 ? "🏆" : pct>=80 ? "🎉" : pct>=50 ? "👍" : "💪";
+
+  const retryWrongBtn = document.getElementById("btn-retry-wrong");
+  retryWrongBtn.classList.toggle("hidden", state.wrongItems.length===0);
+
+  showScreen("result");
+}
+
+document.getElementById("btn-retry-wrong").addEventListener("click", ()=>{
+  const wrong = state.wrongItems.slice();
+  state.isRetryWrongFlow = true;
+  startQuiz(state.categoryId, wrong.length, wrong);
+});
+
+document.getElementById("btn-retry-same").addEventListener("click", ()=>{
+  startQuiz(state.categoryId, state.count);
+});
+
+document.getElementById("btn-back-home").addEventListener("click", ()=>{
+  showScreen("start");
+});
+</script>
+</body>
+</html>
